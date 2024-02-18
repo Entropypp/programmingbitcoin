@@ -116,7 +116,20 @@ class Tx:
         # parse num_outputs number of TxOuts
         # locktime is an integer in 4 bytes, little-endian
         # return an instance of the class (see __init__ for args)
-        raise NotImplementedError
+    
+        version = little_endian_to_int(s.read(4))
+        num_inputs = read_varint(s)
+        tx_ins = []
+        for i in range(num_inputs):
+            tx_in = TxIn.parse(s)
+            tx_ins.append(tx_in) 
+        num_outputs = read_varint(s)
+        tx_outs = []
+        for i in range(num_outputs):
+            tx_out = TxOut.parse(s)
+            tx_outs.append(tx_out)         
+        locktime = little_endian_to_int(s.read(4))
+        return Tx(version, tx_ins, tx_outs, locktime, testnet)
 
     # tag::source6[]
     def serialize(self):
@@ -138,7 +151,13 @@ class Tx:
         # use TxIn.value() to sum up the input amounts
         # use TxOut.amount to sum up the output amounts
         # fee is input sum - output sum
-        raise NotImplementedError
+        input_total = 0
+        output_total = 0
+        for tx_in in self.tx_ins:
+            input_total = input_total + tx_in.value()
+        for tx_out in self.tx_outs:
+            output_total = output_total + tx_out.amount
+        return input_total - output_total
 
 
 # tag::source2[]
@@ -169,7 +188,11 @@ class TxIn:
         # use Script.parse to get the ScriptSig
         # sequence is an integer in 4 bytes, little-endian
         # return an instance of the class (see __init__ for args)
-        raise NotImplementedError
+        prev_tx = s.read(32)[::-1]
+        prev_index = little_endian_to_int(s.read(4))
+        script_sig = Script.parse(s)
+        sequence = little_endian_to_int(s.read(4))
+        return TxIn(prev_tx,prev_index,script_sig,sequence)
 
     # tag::source5[]
     def serialize(self):
@@ -220,7 +243,9 @@ class TxOut:
         # amount is an integer in 8 bytes, little endian
         # use Script.parse to get the ScriptPubKey
         # return an instance of the class (see __init__ for args)
-        raise NotImplementedError
+        amount = little_endian_to_int(s.read(8))
+        script_pub_key = Script.parse(s)
+        return TxOut(amount,script_pub_key)
 
     # tag::source4[]
     def serialize(self):  # <1>
