@@ -129,7 +129,7 @@ class Tx:
             tx_out = TxOut.parse(s)
             tx_outs.append(tx_out)         
         locktime = little_endian_to_int(s.read(4))
-        return Tx(version, tx_ins, tx_outs, locktime, testnet)
+        return cls(version, tx_ins, tx_outs, locktime, testnet)
 
     # tag::source6[]
     def serialize(self):
@@ -192,7 +192,7 @@ class TxIn:
         prev_index = little_endian_to_int(s.read(4))
         script_sig = Script.parse(s)
         sequence = little_endian_to_int(s.read(4))
-        return TxIn(prev_tx,prev_index,script_sig,sequence)
+        return cls(prev_tx,prev_index,script_sig,sequence)
 
     # tag::source5[]
     def serialize(self):
@@ -245,7 +245,7 @@ class TxOut:
         # return an instance of the class (see __init__ for args)
         amount = little_endian_to_int(s.read(8))
         script_pub_key = Script.parse(s)
-        return TxOut(amount,script_pub_key)
+        return cls(amount,script_pub_key)
 
     # tag::source4[]
     def serialize(self):  # <1>
