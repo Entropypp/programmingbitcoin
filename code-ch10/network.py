@@ -362,5 +362,6 @@ class SimpleNode:
 class SimpleNodeTest(TestCase):
 
     def test_handshake(self):
-        node = SimpleNode('testnet.programmingbitcoin.com', testnet=True)
+        #went to https://bitnodes.io/nodes/addresses/?q=18333 to find atest node
+        node = SimpleNode('54.202.202.134', testnet=True)
         node.handshake()
