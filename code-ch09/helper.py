@@ -126,11 +126,12 @@ def h160_to_p2sh_address(h160, testnet=False):
 def bits_to_target(bits):
     '''Turns bits into a target (large 256-bit integer)'''
     # last byte is exponent
+    exponent = bits[-1]
     # the first three bytes are the coefficient in little endian
+    coefficient = little_endian_to_int(bits[:-1])
     # the formula is:
     # coefficient * 256**(exponent-3)
-    raise NotImplementedError
-
+    return coefficient * 256**(exponent-3)
 
 # tag::source1[]
 def target_to_bits(target):
@@ -156,7 +157,15 @@ def calculate_new_bits(previous_bits, time_differential):
     # the new target is the previous target * time differential / two weeks
     # if the new target is bigger than MAX_TARGET, set to MAX_TARGET
     # convert the new target to bits
-    raise NotImplementedError
+    eight_weeks = 60*60*24*7*8
+    half_week = 60*60*12*7
+    two_weeks = 60*60*24*7*2
+    time_differential = eight_weeks if time_differential > eight_weeks else time_differential
+    time_differential = half_week if time_differential < half_week else time_differential
+    previous_target = bits_to_target(previous_bits)
+    new_target = int(previous_target * time_differential / two_weeks)
+ 
+    return target_to_bits(new_target)
 
 
 class HelperTest(TestCase):

@@ -174,7 +174,41 @@ class Tx:
         # add SIGHASH_ALL using int_to_little_endian in 4 bytes
         # hash256 the serialization
         # convert the result to an integer using int.from_bytes(x, 'big')
-        raise NotImplementedError
+        
+        # serialize version (4 bytes, little endian)
+        result = int_to_little_endian(self.version, 4)
+        # encode_varint on the number of inputs
+        result += encode_varint(len(self.tx_ins))
+        # iterate inputs
+        index = 0
+        #testnet = self.testnet
+        for tx_in in self.tx_ins:
+            if index == input_index:
+                tx = TxIn(
+                prev_tx=tx_in.prev_tx,
+                prev_index=tx_in.prev_index,
+                script_sig=tx_in.script_pubkey(self.testnet),
+                sequence=tx_in.sequence,
+                )    
+            else:
+                tx = TxIn(
+                prev_tx=tx_in.prev_tx,
+                prev_index=tx_in.prev_index,
+                sequence=tx_in.sequence,
+                )
+            # serialize each input
+            result += tx.serialize()
+            index += 1
+        # encode_varint on the number of outputs
+        result += encode_varint(len(self.tx_outs))
+        # iterate outputs
+        for tx_out in self.tx_outs:
+            # serialize each output
+            result += tx_out.serialize()
+        # serialize locktime (4 bytes, little endian)
+        result += int_to_little_endian(self.locktime, 4)
+        result += int_to_little_endian(SIGHASH_ALL, 4)
+        return int.from_bytes(hash256(result), 'big')
 
     def verify_input(self, input_index):
         '''Returns whether the input has a valid signature'''
@@ -183,7 +217,13 @@ class Tx:
         # get the signature hash (z)
         # combine the current ScriptSig and the previous ScriptPubKey
         # evaluate the combined script
-        raise NotImplementedError
+        tx_input = self.tx_ins[input_index]
+        script_pubkey = tx_input.script_pubkey(testnet=self.testnet)
+        script_sig = tx_input.script_sig
+        combined_script = script_sig + script_pubkey
+        z = self.sig_hash(input_index)
+        return combined_script.evaluate(z)
+    
 
     # tag::source2[]
     def verify(self):
@@ -204,8 +244,13 @@ class Tx:
         # initialize a new script with [sig, sec] as the cmds
         # change input's script_sig to new script
         # return whether sig is valid using self.verify_input
-        raise NotImplementedError
-
+        z = self.sig_hash(input_index)
+        der = private_key.sign(z).der()
+        sig = der + SIGHASH_ALL.to_bytes(1, 'big')
+        sec = private_key.point.sec()
+        script_sig = Script([sig, sec])
+        self.tx_ins[input_index].script_sig = script_sig
+        return self.verify_input(input_index)
 
 class TxIn:
 
@@ -402,5 +447,6 @@ class TxTest(TestCase):
         stream = BytesIO(bytes.fromhex('010000000199a24308080ab26e6fb65c4eccfadf76749bb5bfa8cb08f291320b3c21e56f0d0d00000000ffffffff02408af701000000001976a914d52ad7ca9b3d096a38e752c2018e6fbc40cdf26f88ac80969800000000001976a914507b27411ccf7f16f10297de6cef3f291623eddf88ac00000000'))
         tx_obj = Tx.parse(stream, testnet=True)
         self.assertTrue(tx_obj.sign_input(0, private_key))
+        self.maxDiff = None
         want = '010000000199a24308080ab26e6fb65c4eccfadf76749bb5bfa8cb08f291320b3c21e56f0d0d0000006b4830450221008ed46aa2cf12d6d81065bfabe903670165b538f65ee9a3385e6327d80c66d3b502203124f804410527497329ec4715e18558082d489b218677bd029e7fa306a72236012103935581e52c354cd2f484fe8ed83af7a3097005b2f9c60bff71d35bd795f54b67ffffffff02408af701000000001976a914d52ad7ca9b3d096a38e752c2018e6fbc40cdf26f88ac80969800000000001976a914507b27411ccf7f16f10297de6cef3f291623eddf88ac00000000'
         self.assertEqual(tx_obj.serialize().hex(), want)
